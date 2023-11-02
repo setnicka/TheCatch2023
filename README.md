@@ -395,7 +395,7 @@ protokolem HTTP/1.0, Nginx pak HTTP/1.1 a HTTP/2, nemůže ten první endpoint b
 To neposílalo v requestu žádnou verzi a request tak vypadal jen jako `GET /cesta`
 (narozdíl třeba od HTTP/1.1, kde vypadá jako `GET /cesta HTTP/1.1`).
 
-Protože `curl` podle hintu HTTP/0.9 neposílá správně, tak to můžeme udělt ručně
+Protože `curl` podle hintu HTTP/0.9 neposílá správně, tak to můžeme udělat ručně
 přes netcat třeba takto:
 
 ```sh
@@ -771,7 +771,7 @@ TO_BASE64((SELECT GROUP_CONCAT(id) FROM users))
 ```
 
 Postupně si vytáhneme všechny údaje o uživatelích. Hesla jsou SHA256 hashe,
-crackneme je pomocí https://crackstation.net/ obsahujácí hashe pro spoustu
+crackneme je pomocí https://crackstation.net/ obsahující hashe pro spoustu
 běžných hesel:
 * id=1, username=engeneer, rank=1, active=0, password=15e2b0d3c33891ebb0f1ef609ec419420c20e320ce94c65fbc8c3312448eb225
   * cracked: `123456789`
@@ -802,7 +802,7 @@ odpovídá celkem na 234 portech z rozsahu od 60000 do 60495 ([seznam](15_Keywor
 
 Každý z nich zdá se vrací na pohled tu stejnou stránku stejné, ale obsah všech
 se mění každou sekundu! Liší se uvnitř jejich [obfuskovaného javascriptu](15_Keyword_of_the_day/original.js).
-Přesněji vždy v jednom elementu stringové pole (zvýrazněno níže):
+Přesněji vždy v jednom elementu stringového pole (zvýrazněno níže):
 ```js
 …,'158706KaxUIc','82f6647715','XpYtE','getElement','zkkfn']…
 //                ^^^^^^^^^^
@@ -978,7 +978,7 @@ díky ní zase po čase osvěžil práci s OpenCV.
 Po stažení souboru se nám naskytne pohled na dva velice umňoukané kusy Pythoního
 kódu :D
 
-Hlavní spustitlený kód je [`meowmeow.py`](13_Cat_code/original/meowmeow.py),
+Hlavní spustitelný kód je [`meowmeow.py`](13_Cat_code/original/meowmeow.py),
 který využívá metody z ['meow.py](13_Cat_code/original/meow.py). Když se
 pokusíme kód spustit, tak se nás zeptá "Who rules the worlds?" a očekává
 odpověď.
@@ -998,8 +998,8 @@ Zamotané, ale tohle dlouho netrvá.
 
 To co ale trvá dlouho je `meow()`, ta totiž počítá
 [Fibonacciho číslo](https://cs.wikipedia.org/wiki/Fibonacciho_posloupnost) a to
-rekurzivně podle definice, což je exponencionální v době výpočtu (a taky vede
-k exponencionálně mnoha zamňoukáním do terminálu :D). To ale můžeme lehce
+rekurzivně podle definice, což je exponenciální v době výpočtu (a taky vede
+k exponenciálně mnoha zamňoukáním do terminálu :D). To ale můžeme lehce
 opravit pomocí [dynamického programování](https://ksp.mff.cuni.cz/kucharky/dynamicke-programovani/) aneb nepočítat stejné věci vícekrát, ale uložit si je.
 V Pythonu to můžeme lehce zařídit pomocí dekorátorů:
 
@@ -1017,7 +1017,7 @@ def meow(kittens_of_the_world):
     ...
 ```
 
-Druhá věc, ktrou potřebujeme udělat, je zvětšit povolenou hloubku rekurze a to
+Druhá věc, kterou potřebujeme udělat, je zvětšit povolenou hloubku rekurze a to
 třeba takto:
 
 ```python
@@ -1324,7 +1324,7 @@ SMB:
   * Dá se z nich vytáhnout soubor [`history.db`](18_Suspicious_traffic/history.db)
     a [`employees.db`](18_Suspicious_traffic/employees.db), Wireshark umí soubory
     přímo uložit
-  * Oba soubory jsou poslané několikrát, ale podle md5sum jsou všechyn verze stejné
+  * Oba soubory jsou poslané několikrát, ale podle md5sum jsou všechny verze stejné
   * Oba soubory jsou SQLite databáze
 * Je tam SMB3 encrypted komunikace – do té se neumíme bez hesla dostat
   * Vykoukáme z toho jen, že ji inicioval `james_admin`
@@ -1362,7 +1362,7 @@ ani nic podobného).
 Navazování komunikace probíhá v kostce takto:
 * Klient a server navážou TCP spojení a vymění si, co kdo umí
 * Server pošle `NTLM server challenge`
-* Klient odpovíd pošle:
+* Klient odpoví a pošle:
   * username
   * doménu
   * `NTProofStr` a zbytek `NTLMv2 response`
@@ -1384,7 +1384,7 @@ Jediné, co nám schází, je heslo. Můžeme odhadnout, že bude mít klasický
 
 Pak prozkoumáme článek o [crackování NTLMv2 hashe na 801 Labs](https://www.801labs.org/research-portal/post/cracking-an-ntlmv2-hash/)
 a podle něj použijeme [`hashcat`](https://hashcat.net/hashcat/), což je utilita
-na velmi rychlé crakování hesla. Hesla může zkoušet úplně náhodně, ale při naší
+na velmi rychlé crackování hesla. Hesla může zkoušet úplně náhodně, ale při naší
 odhadované délce hesla to je již příliš. Můžeme si ale pořídit generátor na
 odhadnutý tvar hesla (viz [`gen_passwordlist.py`](18_Suspicious_traffic/gen_passwordlist.py))
 a pak nechat `hashcat` hesla velmi rychle vyzkoušet.
@@ -1418,7 +1418,7 @@ KeyExKey:  6a1d3b41cdf3d40f15a6c15b80d567d0
 Random SK: 7a93dee25de4c2141657e7037dddb8f1
 ```
 
-Vložíme `7a93dee25de4c2141657e7037dddb8f1` do Wiresharku pro ID komunikace `49b136b900000000` a voilá… Decrypted!
+Vložíme `7a93dee25de4c2141657e7037dddb8f1` do Wiresharku pro ID komunikace `49b136b900000000` a voilà… Decrypted!
 Uložíme si z komunikace [`secret.db.enc`](18_Suspicious_traffic/secret.db.enc)
 a pak ji dekódujeme:
 
