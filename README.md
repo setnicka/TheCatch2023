@@ -9,6 +9,30 @@ imitující "hackování".
 Povedlo se mi nakonec získat vlajku v 17 z 18 úloh a níže je můj write-up
 popisující můj přístup k řešení každé úlohy.
 
+* [Sailor training center](#sailor-training-center)
+  + [VPN access (1/1 bod)](#vpn-access-11-bod)
+  + [Treasure map (1/1 bod)](#treasure-map-11-bod)
+  + [Captain's coffee (1/1 bod)](#captains-coffee-11-bod)
+  + [Ship web server (1/1 bod)](#ship-web-server-11-bod)
+* [Crew drills](#crew-drills)
+  + [Sonar logs (2/2 body)](#sonar-logs-22-body)
+  + [Regular cube (2/2 body)](#regular-cube-22-body)
+  + [Web protocols (2/2 body)](#web-protocols-22-body)
+  + [Alpha-Zulu quiz (3/3 body)](#alpha-zulu-quiz-33-body)
+* [Troubles on the bridge](#troubles-on-the-bridge)
+  + [Captain's password (2/2 body)](#captains-password-22-body)
+  + [Navigation plan (3/3 body)](#navigation-plan-33-body)
+  + [Keyword of the day (4/4 body)](#keyword-of-the-day-44-body)
+  + [Signal flags (5/5 bodů)](#signal-flags-55-bodů)
+* [Below deck troubles](#below-deck-troubles)
+  + [Cat code (3/3 body)](#cat-code-33-body)
+  + [Component replacement (3/3 body)](#component-replacement-33-body)
+  + [U.S.A. (5/5 body)](#usa-55-body)
+  + [Suspicious traffic (5/5 bodů)](#suspicious-traffic-55-bodů)
+* [Miscellaneous](#miscellaneous)
+  + [Naval chef's recipe (2/2 bodů)](#naval-chefs-recipe-22-bodů)
+  + [Arkanoid (0/5 bodů)](#arkanoid-05-bodů)
+
 ## Sailor training center
 
 ### VPN access (1/1 bod)
@@ -643,7 +667,7 @@ $ echo 'rO0ABXVyABNbTGphdmEubGFuZy5TdHJpbmc7rdJW5+kde0cCAAB4cAAAAAJ0ACFEOi93aW4z
 
 Po dekódování z base64 šlo poznat.
 
-## Troubles on the bridge (získáno 14/14 bodů)
+## Troubles on the bridge
 
 ### Captain's password (2/2 body)
 
@@ -961,7 +985,7 @@ Po base64 dekódování získáme finálně vlajku `FLAG{lTrG-3oXn-aoZN-Z4qM}`. 
 byla úloha, u které bylo od začátku jasné, co s ní dělat, a jsem rád, že jsem si
 díky ní zase po čase osvěžil práci s OpenCV.
 
-## Below deck troubles (získáno 16/16 bodů)
+## Below deck troubles
 
 ### Cat code (3/3 body)
 
@@ -1428,7 +1452,7 @@ openssl enc -d -aes-256-cbc -pbkdf2 -in secret.db.enc -out secret.db -k R3alyStr
 
 V SQLite databázi najdeme `FLAG{5B9B-lwPy-OfRS-4uEN}`. Velmi pěkná úloha, děkuji autorům :)
 
-## Miscellaneous (získáno 2/7 bodů)
+## Miscellaneous
 
 ### Naval chef's recipe (2/2 bodů)
 
