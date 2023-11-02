@@ -1427,3 +1427,98 @@ openssl enc -d -aes-256-cbc -pbkdf2 -in secret.db.enc -out secret.db -k R3alyStr
 ```
 
 V SQLite databázi najdeme `FLAG{5B9B-lwPy-OfRS-4uEN}`. Velmi pěkná úloha, děkuji autorům :)
+
+## Miscellaneous (získáno 2/7 bodů)
+
+### Naval chef's recipe (2/2 bodů)
+
+> Ahoy, officer,
+>
+> some of the crew started behaving strangely after eating the chef's speciality
+> of the day - they apparently have hallucinations, because they are talking
+> about sirens wailing, kraken on starboard, and accussed the chef being
+> reptilian spy. Paramedics are getting crazy, because the chef refuses to
+> reveal what he used to make the food. Your task is to find his secret recipe.
+> It should be easy as the chef knows only security by obscurity and he has
+> registered domain `chef-menu.galley.cns-jv.tcc`. May you have fair winds and
+> following seas!
+>
+> The chef's domain is `chef-menu.galley.cns-jv.tcc`.
+
+Jedna z velmi jednoduchých úloh na rozjezd, stačí se podívat na stránku před
+přesměrováním:
+
+```sh
+$ curl -s http://chef-menu.galley.cns-jv.tcc
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head>
+  <title>301 Moved Permanently</title>
+  <meta http-equiv="refresh" content="0;url=https://chef-menu.galley.cns-jv.tcc">
+</head><body>
+<h1>Moved Permanently</h1>
+<p>The document has moved <a href="https://chef-menu.galley.cns-jv.tcc">here</a>.</p>
+<p style="display: none">The secret ingredient is composed of C6H12O6, C6H8O6, dried mandrake, FLAG{ytZ6-Pewo-iZZP-Q9qz}, and C20H25N3O. Shake, do not mix.</p>
+<script>window.location.href='https://chef-menu.galley.cns-jv.tcc'</script>
+</body></html>
+```
+
+Vlajka `FLAG{ytZ6-Pewo-iZZP-Q9qz}` na nás přímo trčí :)
+
+Jinak hlavní důvod divného chování posádky bude pravděpodobně C20H25N3O, což
+je sumární vzorec pro [Diethylamid kyseliny lysergové](https://cs.wikipedia.org/wiki/Diethylamid_kyseliny_lysergov%C3%A9) aneb LSD,
+další ingredience pak vypadají na mandragoru, glukózu a vitamín C (i když podle
+sumárních vzorců se to těžko určuje s jistotou).
+
+### Arkanoid (0/5 bodů)
+
+> Ahoy, officer,
+>
+> a new server with a video game is to be placed in the ship's relaxation center
+> . Your task is to check whether the server does not contain any
+> vulnerabilities.
+>
+> May you have fair winds and following seas!
+>
+> The game server has domain name `arkanoid.cns-jv.tcc`.
+
+Za mě nejtěžší úloha letošního The Catch, protože se mi ji nepovedlo vyřešit.
+Doporučuji podívat se na writeup někoho úspěšnějšího.
+
+Mě se povedlo jen zjistit, že na zadaném serveru je otevřených několik TCP
+portů:
+
+```sh
+nmap -p- arkanoid.cns-jv.tcc
+PORT      STATE SERVICE
+8000/tcp  open  http-alt
+43709/tcp open  unknown
+60001/tcp open  unknown
+60002/tcp open  unknown
+```
+
+S tím, že port 43709 se mění, viděno i 36455 a 39065. Zbylé jsou stabilní.
+
+Na portu 8000 běží [jednoduchý web](http://arkanoid.cns-jv.tcc:8000/) s hrou. Po
+přeformátování Javascriptu přesně odpovídá Javascriptu z návodu na
+[2D Breakout game pure Javascript](https://developer.mozilla.org/en-US/docs/Games/Tutorials/2D_Breakout_game_pure_JavaScript)
+s minimálním diffem ([skript z webu](21_Arkanoid/script.js), [originální MDN skript](21_Arkanoid/script_mdn_original.js)):
+
+```diff
+$ diff script_mds_original.js script.js
+67,68c67,70
+<                         alert("YOU WIN, CONGRATS!");
+<                         document.location.reload();
+---
+>                         fetch("/score?data="+score).then(response => response.json()).then(data => {
+>                             console.log(data);
+>                             alert(data.message);
+>                         }).catch(error => { console.error('Error:', error); });
+```
+
+Z hlaviček šlo vytáhnout, že web běží na Javě (`X-server: Java/1.8.0_144`).
+
+Zkoušel jsem i posílat různé requesty na endpoint `http://arkanoid.cns-jv.tcc:8000/score?data=123`.
+Odezva žádná, jen jsem zvládl vyvolat odpověď 400 Bad Request s textem `URISyntaxException`,
+když jsem poslal `{` nebo `\`.
+
+Více se mi bohužel zjisti nepovedlo a zde jsem s řešením skončil.
