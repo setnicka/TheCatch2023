@@ -53,11 +53,11 @@ pro mnoho dalších úloh. Stačilo si stáhnout vygenerovanou konfiguraci pro O
 spustit OpenVPN a přečíst si vlajku na stránce na výše uvedené doméně.
 
 S DNS byl opět na Linuxu drobný problém, je potřeba DNS server poskytnutý
-po připojení OpenVPN serverem do systémového resolveru, což je ve Windows
+po připojení OpenVPN serverem přidat do systémového resolveru, což je ve Windows
 automatické, v Linuxu kvůli rozmanitosti systémů bohužel ne. Ale naštěstí má
 většina distribucí jako součást instalace OpenVPN i sbírku skriptů a stačí tak
 do konfigurace dopsat jejich zavolání (`up` je akce při spuštění VPN, `down`
-zase kace při vypnutí):
+zase akce při vypnutí):
 
 ```conf
 script-security 2
@@ -85,7 +85,7 @@ $ curl -s http://vpn-test.cns-jv.tcc | grep -i flag
 >
 > Download the [treasure map](https://owncloud.cesnet.cz/index.php/s/mEUTtvkE8zsgZVf/download).
 
-Na zadaném obrázku je pirátská mapa v PNG, na které jsou lehce znát písmenka.
+Na zadaném odkazu je PNG obrázek pirátské mapy, na které jsou lehce znát písmenka.
 Abychom se při čtení netrápili, tak v GIMPu vybereme jednolitě barevné pozadí
 (s nastavením prahu na 0, abychom nevybrali nic jiného) a změníme mu barvu, aby
 se nám pak vlajka lépe četla:
@@ -184,11 +184,11 @@ done
 Další rozcvičková úloha, ale už o krapet složitější. V zadání dostáváme adresu,
 která nás přesměruje na svou HTTPS verzi podepsanou neznámým certifikátem.
 Certifikát ani nemůže být validní, protože pro TLD `.tcc` běžící jenom za VPNkou
-by ho nikdo asi žádný velký vydavatel certifikátů nevydal a nezaručil se za něj.
+by ho asi žádný velký vydavatel certifikátů nevydal a nezaručil se za něj.
 V rámci řešení CTFka ale můžeme s opatrností pokračovat.
 
-Zobrazí se nám stránka, která v patičce má `ver. RkxBR3sgICAgLSAgICAtICAgIC0gICAgfQ==`,
-to nápadně připomíná [base64 enkódování](https://cs.wikipedia.org/wiki/Base64),
+Zobrazí se nám stránka, která v patičce má `ver. RkxBR3sgICAgLSAgICAtICAgIC0gICAgfQ==`.
+To nápadně připomíná [base64 enkódování](https://cs.wikipedia.org/wiki/Base64),
 zkusme si ho přeložit na text:
 
 ```sh
@@ -209,9 +209,9 @@ domén:
 pro více domén, tak to může znamenat, že všechny běží na tom stejném stroji.
 Použijeme tedy IP adresu stroje z funkční domény, ale v `Host` HTTP hlavičce
 mu předáme ostatní domény. To jde udělat pomocí `curl` například jako níže
-(namísto IP adresy `www.cns-jv.tcc` tak rovnou používáme tuto doménu).
+(namísto IP adresy `www.cns-jv.tcc` můžeme rovnou zadat tuto doménu).
 
-Na každém webu je nějaká stránka opět s base64 verzí uvedenou někde na stránce,
+Na každém webu je nějaká stránka opět s base64 verzí uvedenou někde na ní.
 Vhodným použitím příkazů `grep`, `sed` a `base64` tak vytáhneme části vlajky:
 
 ```sh
@@ -296,7 +296,7 @@ $ . venv/bin/activate
 ```
 
 Pak si napíšeme skript, který načte všechny řádky logu, naparsuje je, seřadí
-podle času a převede na písmenka.
+podle času a převede na písmenka: [`solve.py`](09_Sonar_logs/solve.py)
 
 ```sh
 (venv) $ python3 solve.py < sonar.log
@@ -346,13 +346,13 @@ chybiček) docela normální text: `FLAG{NICE-NAVY-BLUE-CUBE}`.
 
 Tato úloha mě potrápila jako jedna z nejvíce.
 
-První věc, kterou můžeme udělat, když dostaneme adresu nějakého počítače, je
-podívat se, co na něm vlastně běží. Můžeme zkusit otevřít spojení na všechny
-jeho TCP porty nástrojem `nmap` a zjistíme, na kterých portech je nám počítač
+První věc, kterou můžeme udělat, když dostaneme adresu, je podívat se, co na
+počítači za touto adresou vlastně běží. Můžeme zkusit otevřít spojení na všechny
+jeho TCP porty nástrojem `nmap`, cím zjistíme, na kterých portech je nám počítač
 ochotný odpovědět. Často se z toho dá zjistit, jaké všechny služby tam běží.
 
-Protože `nmap` normálně skenuje jen nejčastější běžné porty, tak mu ještě
-pomocí přepínače `-p` vysvětlíme, co má skenovat (`-` je celý rozsah do 65535):
+Protože `nmap` normálně skenuje jen nejpoužívanější porty, tak mu ještě
+pomocí přepínače `-p` vysvětlíme, co má skenovat (`-` je celý rozsah od 0 do 65535):
 
 ```sh
 $ nmap -p- web-protocols.cns-jv.tcc
@@ -416,7 +416,7 @@ Schází nám ještě první část vlajky, zatím máme `FLAG{....-rvbq-abIR-43
 Další věcí, které si můžeme všimnout, je to, že Python servery odpovídají
 protokolem HTTP/1.0, Nginx pak HTTP/1.1 a HTTP/2, nemůže ten první endpoint být
 [původní HTTP, dnes nazývané HTTP/0.9](https://www.w3.org/Protocols/HTTP/AsImplemented.html)?
-To neposílalo v requestu žádnou verzi a request tak vypadal jen jako `GET /cesta`
+To neposílalo v requestu žádnou verzi a request tak vypadal jen jako `GET /cesta`
 (narozdíl třeba od HTTP/1.1, kde vypadá jako `GET /cesta HTTP/1.1`).
 
 Protože `curl` podle hintu HTTP/0.9 neposílá správně, tak to můžeme udělat ručně
@@ -432,7 +432,7 @@ Unsupported protocol version
 Až sem byla úloha velmi hezká. Ale bohužel po vyzkoušení tohoto a obdržení
 výše uvedené odpovědi jsem po dlouhém snažení úlohu odložil k ledu a vrátil se
 k ní až později. Endpoint totiž odpovídal tak, jako kdyby provozoval HTTP/1.1,
-ale ať do něj člověk poslal cokoliv, odpověděl mu v podstatě vždy stejně.
+ale ať do něj člověk posílá cokoliv, odpovídá mu v podstatě vždy stejně.
 
 Až po mnoha pokusech a asi třetímu navrácení k úloze jsem si řekl, co když to
 autoři udělali blbě a stvořili protokol, který nikdy neexistoval? A ano!
@@ -446,7 +446,7 @@ SESSION=RkxBR3trckx0; iVBORw0KGgoA...
 ```
 
 Rád bych ale řekl, že nic takového nikdy v historii neexistovalo a úloha byla
-kvůli tomu dost matoucí a nemám z ní moc dobré pocity, i když mohla být
+kvůli tomu dost matoucí a nemám z ní moc dobré pocity, i když mohla být
 skutečně hezká :(
 
 Finálně pak už jen dekódujeme `RkxBR3trckx0`, získáme `FLAG{krLt` a sestavíme
@@ -537,7 +537,7 @@ několika bajtů identifikujeme PE executable.
 00000060: d802 0000 0000 0000 d802 0000 0000 0000  ................
 ```
 
-Hexdump, podle prvních několika bajtů (podle toho se i jmenuje :D)
+Hexdump, v prvních několika bajtech na nás přímo vykoukne název ELF.
 
 **Microsoft EVTX file signature:**
 
@@ -688,7 +688,7 @@ Ze staženého souboru na nás vypadne KeePass file (password manager)
 asi gigový dump paměti. Když si instalujeme KeePass a zkusíme soubor načíst, tak
 po nás samozřejmě chce master password. Musíme ho zjistit.
 
-Po chvilce hledání lze nalézt, že KeePass má známý exploit související s tím,
+Po chvilce hledání lze přijít na to, že KeePass má známý exploit související s tím,
 jak pracuje s textovým políčkem při zadávání hesla. Při každém stisku klávesy do
 něj totiž přibude písmeno, ale KeePass ho hned změní na `●`. Bohužel kvůli
 práci se stringy okolo tohoto textového políčka ale v paměti zůstávají stringy
@@ -709,7 +709,7 @@ Vypadne z toho `Combined: ●{), ÿ, a, :, |, í, W, 5, \n, r, ¸}ssword4mypreci
 vypadá to na `password4mypreciousship`. A funguje!
 
 V KeePass souboru je dost hesel, zajímá nás ale to k Main Flag System, které má
-nápadně podobný tvar: `FLAG{pyeB-941A-bhGx-g3RI}`
+nápadně známý tvar: `FLAG{pyeB-941A-bhGx-g3RI}`
 
 ### Navigation plan (3/3 body)
 
@@ -802,9 +802,9 @@ běžných hesel:
 * id=2, username=captain, rank=0, active=1, password=7de22a47a2123a21ef0e6db685da3f3b471f01a0b719ef5774d22fed684b2537
   * cracked: `$captainamerica$`
 * id=3, username=officer, rank=1, active=1, password=6a4aed6869c8216e463054dcf7e320530b5dc5e05feae6d6d22a4311e3b22ceb
-  * heslo jsme nenašli not found :(
+  * heslo jsme nenašli :(
 
-Zalogujeme se jako `captain` a pod Target 4 (Mariana Trench) je `FLAG{fmIT-QkuR-FFUv-Zx44}`
+Zalogujeme se jako `captain` a pod Target 4 (Mariana Trench) je `FLAG{fmIT-QkuR-FFUv-Zx44}`.
 
 ### Keyword of the day (4/4 body)
 
@@ -824,7 +824,7 @@ Zalogujeme se jako `captain` a pod Target 4 (Mariana Trench) je `FLAG{fmIT-QkuR-
 Když uděláme `nmap -p- keyword-of-the-day.cns-jv.tcc`, tak zjistíme, že server
 odpovídá celkem na 234 portech z rozsahu od 60000 do 60495 ([seznam](15_Keyword_of_the_day/ports.txt)).
 
-Každý z nich zdá se vrací na pohled tu stejnou stránku stejné, ale obsah všech
+Každý z nich zdá se vrací na pohled tu stejnou stránku, ale obsah všech
 se mění každou sekundu! Liší se uvnitř jejich [obfuskovaného javascriptu](15_Keyword_of_the_day/original.js).
 Přesněji vždy v jednom elementu stringového pole (zvýrazněno níže):
 ```js
@@ -920,7 +920,7 @@ na stejném portu pak získáme vlajku: `FLAG{DEIE-fiOr-pGV5-8MPc}`
 > Download the [schematic views](https://owncloud.cesnet.cz/index.php/s/J0z72ztOKzMLdHR/download).
 
 Na uvedeném odkazu dostaneme 90 obrázku o velikosti zhruba 4K*2K pixelů
-vypadajících zhruba takto:
+vypadajících podobně jako tento:
 
 ![](14_Signal_flags/image_example.png)
 
@@ -931,7 +931,7 @@ Na každém obrázku je loď a:
 * vlajky zpráv (vždy v zeleném rámečku a jednoznačně uspořádané zvrchu dolů)
 
 Na extrakci textových informací můžeme použít třeba [Tesseract OCR](https://github.com/tesseract-ocr/tesseract)
-a pak podle toho přejmenovat soubory popořadě podle timestampu z obrázku (stačí podle času):
+a pak pomocí jeho výstupu přejmenovat soubory popořadě podle timestampu z obrázku (stačí podle času):
 
 ```sh
 $ sudo apt install tesseract-ocr python3-opencv
@@ -965,7 +965,7 @@ si je je do složky [`flags/`](14_Signal_flags/flags/):
 | G | —                                | O | ![](14_Signal_flags/flags/o.png) | W | ![](14_Signal_flags/flags/w.png) | 0 | ![](14_Signal_flags/flags/0.png) | 8 | ![](14_Signal_flags/flags/8.png) |
 | H | ![](14_Signal_flags/flags/h.png) | P | ![](14_Signal_flags/flags/p.png) | X | ![](14_Signal_flags/flags/x.png) | 1 | ![](14_Signal_flags/flags/1.png) | 9 | ![](14_Signal_flags/flags/9.png) |
 
-Pomocí opencv si napíšeme Python skript na rozpoznávání vlakej. Na každý obrázek
+Pomocí opencv si napíšeme Python skript na rozpoznávání vlajek. Na každý obrázek
 poštveme `cv2.matchTemplate` a najdeme výskyty každé vlajky. Pak už stačí jenom
 sort podle *y* pozice (shora dolů) a případně dekódovat hex stringy.
 
@@ -1003,7 +1003,7 @@ Po stažení souboru se nám naskytne pohled na dva velice umňoukané kusy Pyth
 kódu :D
 
 Hlavní spustitelný kód je [`meowmeow.py`](13_Cat_code/original/meowmeow.py),
-který využívá metody z ['meow.py](13_Cat_code/original/meow.py). Když se
+který využívá metody z ['meow.py`](13_Cat_code/original/meow.py). Když se
 pokusíme kód spustit, tak se nás zeptá "Who rules the worlds?" a očekává
 odpověď.
 
@@ -1053,7 +1053,7 @@ Upravené soubory: [`meow.py`](13_Cat_code/meow.py), [`meowmwow.py`](13_Cat_code
 
 Pak po spuštění již dostaneme docela málo zamňoukání a pak také text
 `FLAG{YcbS-IAbQ-KHRE-BTNR}`. A jen jako zpestření, 770. Fibonacciho číslo, které
-se předává do `meowmeow()` vypadá takto:
+se předává do `meowmeow()`, vypadá takto:
 
 ```
 37238998302736542981557591720664221323221262823569669806574084338006722578252257702859727311771517744632859284311258604707327062313057129673010063900204812137985
@@ -1099,7 +1099,7 @@ $ curl -H "X-Forwarded-For: 1.2.3.4" http://key-parts-list.cns-jv.tcc
 You are attempting to access from the IP address 1.2.3.4, which is not assigned to engine room. Access denied.
 ```
 
-Teď jen potřebujeme uhádnout adresu strojovny. Naštěstí v prefixu `/20` není
+Funguje to, teď jen potřebujeme uhádnout adresu strojovny. Naštěstí v prefixu `/20` není
 adres zase tak mnoho (je jich 4096). Na vylistování adres můžeme zneužít třeba
 známý `nmap`, jehož výstup trochu ořízneme pomocí `awk` a pak na každou adresu
 spustíme `curl`:
@@ -1137,7 +1137,7 @@ PORT   STATE SERVICE
 ```
 
 Je na něm API, dá se uhádnout [`/api/`](http://universal-ship-api.cns-jv.tcc/api)
-a pak s nápovědou z vráceného JSONu zkoušet. Najdeme endpointy:
+a pak s nápovědou z vraceného JSONu zkoušet hledat další. Najdeme endpointy:
 
 * [`/api/v1`](http://universal-ship-api.cns-jv.tcc/api/v1) – rozcestník na `admin` a `user`
 * [`/api/v1/admin`](http://universal-ship-api.cns-jv.tcc/api/v1/admin/) – podle hlaviček chce `Bearer` token
@@ -1187,21 +1187,19 @@ $ curl -X POST -v "http://universal-ship-api.cns-jv.tcc/api/v1/user/login" -d 'u
 {"access_token":"eyJhbGciOiJSUzM4NCIsInR5cCI6IkpXVCJ9.eyJ0eXBlIjoiYWNjZXNzX3Rva2VuIiwiZXhwIjoxNjk3NzMyMzEyLCJpYXQiOjE2OTcwNDExMTIsInN1YiI6IjIiLCJhZG1pbiI6ZmFsc2UsImd1aWQiOiI1MTc0YzExNi1mZDU1LTQ5MzQtOTI4Mi01NTc3MzlkM2ZlZmMifQ.qiW3fNQzcAtBRBkvv86_V2wf1GrP8ZIsSXSBjOU9axEu3kK7ik8ts7D7YhD8TcSN8ga0x5nhQsqtHll5uYts8hPQWzCVg7CiB8omztUID_CNgX4PbwhFJl50NI3hV_hKzTGZFBdIwKaGBqfHdHub7VZtnrMbBwEpU2hrRD_zRiXbQPdmjfdmubHvSBGIzwCiCyplNeOrXlZtd_eza7LKuFygSZZFTvI0LmjCvaxb70q8H98rm-E1CjLIUA5xlgabsUyRrKybu1D64_gG1o7QdAE9YQ5T75ozTbPhiE4ZxhZONFe-IoL_pMaecqWyrnNl53FFUDD1vxk_GAS-_kgWhk9PkO194UuHc-QuwVQ7eGFwudXL5qCW5Hy4MqYpWCHOQ07MZs-P6NjPmf_G-suY243QN-EG8zTbtM6hUc7b1AzSsqzAIBwh48dUF0zg6RUYp-MO3ySg_qymBMZy20mNZFuVTReZ7QhkOpYgio2BlObUy6ZO732sFeL8_WUShsS7DZmvJWkpRnSur8v5VWZNDfITynTco4JhCzfrtHoemRYcMmHR1g5ZXTgQIluKk_dgqlS4RBrhhmTFzAPO6pmzXIb_B_vcOancFzSbkWDohOejOGT1x-CA6mwavSlrFBqaS_vpKS0zYZX5PeVB7b1bcyL1GOsNr5rIfBEBrO3-aFU","token_type":"bearer"}
 ```
 
-Z tokenu lze dekódovat JWT token (první část před tečkou, pak je podpis):
+Z tokenu lze dekódovat JWT token (první dvě části oddělené tečkou, pak je podpis):
 ```json
 {
- alg: "RS384",
- typ: "JWT"
-}.
-{
- type: "access_token",
- exp: 1697732312,
- iat: 1697041112,
- sub: "2",
- admin: false,
- guid: "5174c116-fd55-4934-9282-557739d3fefc"
-}.
-[signature]
+  "alg": "RS384",
+  "typ": "JWT"
+}.{
+  "type": "access_token",
+  "exp": 1697732312,
+  "iat": 1697041112,
+  "sub": "2",
+  "admin": false,
+  "guid": "5174c116-fd55-4934-9282-557739d3fefc"
+}.[signature]
 ```
 
 S tokenem se můžeme vydat po systému. Do `/api/v1/admin` se stále nedostaneme
@@ -1285,7 +1283,7 @@ $ curl -s -X POST -H "Authorization: Bearer $admin_token" "http://universal-ship
 ```
 
 Postupně postahujeme (a z nich odhadneme přes importy další jména) velkou část
-aplikace (viz její [složka](17_USA/shipapi/)). A to včetně klíčů používaných pro
+aplikace (viz její [složka](17_USA/shipapi/)). A to včetně klíčů používaných pro
 podepsání JWT tokenu:
 
 * [`shipapi/main.js`](17_USA/shipapi/main.js)
@@ -1349,15 +1347,15 @@ SMB:
     a [`employees.db`](18_Suspicious_traffic/employees.db), Wireshark umí soubory
     přímo uložit
   * Oba soubory jsou poslané několikrát, ale podle md5sum jsou všechny verze stejné
-  * Oba soubory jsou SQLite databáze
+  * Oba soubory jsou SQLite databáze, bohužel nic zajímavého v nich
 * Je tam SMB3 encrypted komunikace – do té se neumíme bez hesla dostat
   * Vykoukáme z toho jen, že ji inicioval `james_admin`
 
 FTP:
 * Vidíme heslo v plaintextu `james.f0r.FTP.3618995`
 * Používá se PORT command = druhá strana si requestne soubor z daného portu, což
-  trochu mate Wireshark – je potřeba označit komunikaci z daného portu taky za
-  FTP, tak už ji Wireshark zobrazí správně
+  trochu mate Wireshark – je potřeba označit komunikaci z daného portu za
+  FTP-data, pak už ji Wireshark zobrazí správně
 * Jde vytáhnout [`home.tgz`](18_Suspicious_traffic/home.tgz) a rozbalit, je to
   home nějakého uživatele
   * Když projdeme `.bash_history`, tak objevíme command s heslem
@@ -1371,7 +1369,7 @@ FTP:
 Když z toho uděláme nějaký závěr, tak na síti hodně komunikoval nějaký `james`,
 který používá docela pravidelný pattern pro hesla: `james.f0r.<služba>.<číslo>`.
 Povedlo se nám dekódovat a nějak přečíst skoro vše, co na síti proběhlo, vyjma
-té jedné šifrované SMF komunikace iniciované uživatelem `james_admin`.
+té jedné šifrované SMB komunikace iniciované uživatelem `james_admin`.
 
 #### Dešifrování SMB komunikace
 
